@@ -1,6 +1,3 @@
-gspread
-oauth2client
-moviepy
 requests
-Pillow
 groq
+pandas
