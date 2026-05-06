@@ -16,7 +16,7 @@ def get_unique_description(product_name):
     prompt = f"Write a catchy, high-converting Pinterest description for a product named '{product_name}'. Use a professional yet exciting tone for USA/Europe audience. Include a hook and 3 relevant hashtags."
     
     completion = client.chat.completions.create(
-        model="llama3-8b-8192",
+        model="llama-3.1-8b-instant",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
     )
