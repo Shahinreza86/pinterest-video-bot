@@ -1,64 +1,80 @@
 import os
 import requests
 import random
-import time
 import csv
 from groq import Groq
 
-# GitHub Secrets
+# GitHub Secrets থেকে ডাটা নেওয়া
 PINTEREST_TOKEN = os.environ.get('PINTEREST_TOKEN')
 GOOGLE_SHEET_ID = os.environ.get('GOOGLE_SHEET_ID')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# এনিমেশন এবং ট্রানজিশন স্টাইলস
-ANIMATION_STYLES = ["Ken Burns Effect", "Zoom-in Slow", "Slide Transition", "Fade In-Out"]
-MUSIC_MOODS = ["Upbeat", "Minimalist", "Product Showcase", "Modern"]
-
 def get_sheet_data():
-    """গুগল শিট থেকে ডাটা রিড করা"""
+    """গুগল শিট থেকে ডেটা রিড করা"""
     url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/export?format=csv"
     response = requests.get(url)
     content = response.text.splitlines()
     reader = csv.DictReader(content)
     return list(reader)
 
-def get_ai_creative_content(product_name):
-    """প্রতিটি ভিডিওর জন্য আলাদা এআই ডেসক্রিপশন তৈরি"""
-    prompt = f"Write a viral, professional Pinterest description for '{product_name}'. Make it unique, use bullet points for features, and include 3 high-traffic hashtags. Audience: USA/UK Home Decor."
-    
+def get_ai_description(product_name):
+    """Groq AI দিয়ে ইউনিক ডেসক্রিপশন তৈরি"""
+    prompt = f"Create a viral Pinterest description for '{product_name}'. Use a professional tone for USA audience with 3 hashtags."
     completion = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.8 # বৈচিত্র্য বাড়াতে টেম্পারেচার বাড়ানো হয়েছে
+        messages=[{"role": "user", "content": prompt}]
     )
     return completion.choices[0].message.content
 
-def process_automation():
+def post_to_pinterest(image_url, title, description, link):
+    """পিন্টারেস্ট এপিআই ব্যবহার করে সরাসরি পোস্ট করা"""
+    post_url = "https://api.pinterest.com/v5/pins"
+    headers = {
+        "Authorization": f"Bearer {PINTEREST_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    
+    # পিন্টারেস্টের জন্য পে-লোড (বোর্ড আইডি অটোমেটিক হ্যান্ডেল হবে যদি আপনার টোকেন পারমিশন থাকে)
+    data = {
+        "title": title,
+        "description": description,
+        "link": link,
+        "media_source": {
+            "source_type": "image_url",
+            "url": image_url
+        }
+    }
+    
+    response = requests.post(post_url, headers=headers, json=data)
+    return response.status_code
+
+def run_bot():
+    print("🚀 Starting Pinterest Automation...")
     data = get_sheet_data()
     
     for row in data:
         if row['Status'].lower() == 'pending':
             product = row['Product Name']
-            img_url = row['Image URL']
+            img = row['Image URL']
+            affiliate_link = row['Target URL']
             
-            # একেকবার একেক স্টাইল সিলেক্ট করা
-            selected_style = random.choice(ANIMATION_STYLES)
-            selected_music = random.choice(MUSIC_MOODS)
+            print(f"📦 Processing: {product}")
             
-            print(f"🎬 Creating Video for: {product}")
-            print(f"✨ Style: {selected_style} | 🎵 Music: {selected_music}")
+            # AI ডেসক্রিপশন তৈরি
+            desc = get_ai_description(product)
             
-            # এআই ডেসক্রিপশন জেনারেট করা
-            description = get_ai_creative_content(product)
-            print(f"📝 AI Description: {description[:50]}...")
+            # পিন্টারেস্টে পোস্ট
+            status = post_to_pinterest(img, product, desc, affiliate_link)
             
-            # পিন্টারেস্ট পোস্ট লজিক
-            print(f"✅ Successfully Posted to Pinterest!")
+            if status == 201:
+                print(f"✅ Successfully posted {product} to Pinterest!")
+            else:
+                print(f"❌ Failed to post {product}. Status Code: {status}")
             
-            # একটি পোস্ট হওয়ার পর আমরা থেমে যাব (টেস্ট রান)
+            # টেস্ট রানের জন্য আপাতত একটি করে পোস্ট হবে
             break
 
 if __name__ == "__main__":
-    process_automation()
+    run_bot()
