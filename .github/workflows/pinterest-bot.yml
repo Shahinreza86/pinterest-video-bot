@@ -1,0 +1,28 @@
+name: Pinterest Automation Bot
+
+on:
+  schedule:
+    - cron: '0 16 * * *' # এটি বাংলাদেশ সময় রাত ১০টায় (USA Morning) রান হবে
+  workflow_dispatch: # এই অপশনটি আপনাকে যেকোনো সময় ম্যানুয়ালি রান করার সুযোগ দেবে
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-code: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests groq
+
+      - name: Run Pinterest Bot
+        env:
+          PINTEREST_TOKEN: ${{ secrets.PINTEREST_TOKEN }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python main.py
